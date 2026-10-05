@@ -7,24 +7,114 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-  body { font-family: system-ui, sans-serif; max-width: 480px; margin: 0 auto; padding: 16px; background: #f5f6f8; color: #111; }
-  h1 { font-size: 1.3rem; }
-  .tabs { display: flex; gap: 8px; margin-bottom: 12px; }
-  .tabs button { flex: 1; }
-  button { padding: 10px; border: 0; border-radius: 8px; background: #2b5cff; color: #fff; font-size: 1rem; }
-  button.off { background: #c9ced8; color: #333; }
-  input { width: 100%; box-sizing: border-box; padding: 10px; margin: 6px 0; border: 1px solid #bbb; border-radius: 8px; font-size: 1rem; }
-  .card { background: #fff; padding: 16px; border-radius: 12px; }
-  #qr { margin: 12px 0; display: flex; justify-content: center; }
-  #vResult, #rResult { margin-top: 12px; padding: 10px; border-radius: 8px; }
-  .ok { background: #e3f7e8; color: #146c2e; }
-  .bad { background: #fde7e7; color: #a11; }
-  .info { background: #eef; }
-  small { color: #666; word-break: break-all; }
+body{font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:16px;background:#f5f6f8;color:#111}
+.tabs{display:flex;gap:8px;margin-bottom:12px}.tabs button{flex:1}
+button{padding:10px;border:0;border-radius:8px;background:#2b5cff;color:#fff;font-size:1rem}
+button.off{background:#c9ced8;color:#333}
+input{width:100%;box-sizing:border-box;padding:10px;margin:6px 0;border:1px solid #bbb;border-radius:8px;font-size:1rem}
+.card{background:#fff;padding:16px;border-radius:12px}
+#qr{margin:12px 0;display:flex;justify-content:center}
+.res{margin-top:12px;padding:10px;border-radius:8px;word-break:break-word}
+.ok{background:#e3f7e8;color:#146c2e}.bad{background:#fde7e7;color:#a11}.info{background:#eef}
+small{color:#666;word-break:break-all}
 </style>
 </head>
 <body>
-<h1>🔍 Fake Product Detector</h1>
-
+<h1>Fake Product Detector</h1>
 <div class="tabs">
-  <button id="tabV"
+<button id="tabV" onclick="showTab('verify')">Verify</button>
+<button id="tabR" class="off" onclick="showTab('register')">Register</button>
+</div>
+
+<div id="verify" class="card">
+<b>Check a product</b>
+<input id="vSerial" placeholder="Serial number">
+<button onclick="verify($('vSerial').value.trim())">Verify</button>
+<div id="vResult" class="res"></div>
+</div>
+
+<div id="register" class="card" style="display:none">
+<b>Register a product (manufacturer)</b>
+<input id="serial" placeholder="Serial number (unique)">
+<input id="pname" placeholder="Product name">
+<input id="price" type="number" placeholder="Price">
+<button onclick="register()">Register on blockchain</button>
+<div id="rResult" class="res"></div>
+<div id="qr"></div>
+<small id="link"></small>
+</div>
+
+<script>
+const CONTRACT_ADDRESS = "0x8A9431590Cb8f333aFc4f9C6b30B4dC756193269";
+const RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+const ABI = [
+"function registerProduct(bytes32 id, string name, uint256 price)",
+"function flagProduct(bytes32 id)",
+"function verifyProduct(bytes32 id) view returns (uint8, string, uint256, address)"
+];
+const $ = (id) => document.getElementById(id);
+
+function showTab(t) {
+$("verify").style.display = t === "verify" ? "block" : "none";
+$("register").style.display = t === "register" ? "block" : "none";
+$("tabV").className = t === "verify" ? "" : "off";
+$("tabR").className = t === "register" ? "" : "off";
+}
+
+async function verify(serial) {
+const out = $("vResult");
+out.className = "res info";
+if (!serial) { out.textContent = "Enter a serial number."; return; }
+out.textContent = "Checking...";
+try {
+const c = new ethers.Contract(CONTRACT_ADDRESS, ABI, new ethers.JsonRpcProvider(RPC_URL));
+const r = await c.verifyProduct(ethers.id(serial));
+const s = Number(r[0]);
+if (s === 0) {
+out.className = "res bad";
+out.textContent = "Not registered. This product may be fake.";
+} else if (s === 2) {
+out.className = "res bad";
+out.textContent = "Flagged as fake: " + r[1];
+} else {
+out.className = "res ok";
+out.textContent = "Genuine: " + r[1] + " | Price: " + r[2].toString() + " | Maker: " + r[3];
+}
+} catch (e) {
+out.className = "res bad";
+out.textContent = "Error: " + (e.shortMessage || e.message);
+}
+}
+
+async function register() {
+const out = $("rResult");
+out.className = "res info";
+if (!window.ethereum) { out.textContent = "Open this page in the MetaMask app browser."; return; }
+const serial = $("serial").value.trim();
+const name = $("pname").value.trim();
+const price = $("price").value;
+if (!serial || !name || !price) { out.textContent = "Fill in all fields."; return; }
+try {
+out.textContent = "Confirm in your wallet...";
+const signer = await new ethers.BrowserProvider(window.ethereum).getSigner();
+const c = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
+const tx = await c.registerProduct(ethers.id(serial), name, price);
+out.textContent = "Waiting for confirmation...";
+await tx.wait();
+out.className = "res ok";
+out.textContent = "Registered! Print this QR on the product.";
+const link = location.origin + location.pathname + "?id=" + encodeURIComponent(serial);
+$("qr").innerHTML = "";
+new QRCode($("qr"), { text: link, width: 200, height: 200 });
+$("link").textContent = link;
+} catch (e) {
+out.className = "res bad";
+out.textContent = "Error: " + (e.reason || e.shortMessage || e.message);
+}
+}
+
+const idFromUrl = new URLSearchParams(location.search).get("id");
+if (idFromUrl) { $("vSerial").value = idFromUrl; verify(idFromUrl); }
+</script>
+</body>
+</html>
