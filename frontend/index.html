@@ -4,116 +4,357 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Fake Product Detector</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/6.7.0/ethers.umd.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
 <style>
-body{font-family:system-ui,sans-serif;max-width:480px;margin:0 auto;padding:16px;background:#f5f6f8;color:#111}
-.tabs{display:flex;gap:8px;margin-bottom:12px}.tabs button{flex:1}
-button{padding:10px;border:0;border-radius:8px;background:#2b5cff;color:#fff;font-size:1rem}
-button.off{background:#c9ced8;color:#333}
-input{width:100%;box-sizing:border-box;padding:10px;margin:6px 0;border:1px solid #bbb;border-radius:8px;font-size:1rem}
-.card{background:#fff;padding:16px;border-radius:12px}
-#qr{margin:12px 0;display:flex;justify-content:center}
-.res{margin-top:12px;padding:10px;border-radius:8px;word-break:break-word}
-.ok{background:#e3f7e8;color:#146c2e}.bad{background:#fde7e7;color:#a11}.info{background:#eef}
-small{color:#666;word-break:break-all}
+:root{--blue:#3b82f6;--vio:#6d4aff;--ink:#0f172a;--mut:#64748b;--line:#e6eaf3;--ok:#10a574;--okbg:#eefaf5;--bad:#e11d48;--badbg:#fff1f3;--warn:#d97706;--warnbg:#fff8eb;--grad:linear-gradient(100deg,var(--blue),var(--vio))}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;font:400 16px/1.5 Inter,system-ui,sans-serif;color:var(--ink);background:#f5f7fd;min-height:100vh;position:relative;overflow-x:hidden}
+body::before,body::after{content:"";position:fixed;border-radius:50%;z-index:-1}
+body::before{width:520px;height:520px;left:-200px;bottom:-220px;background:#e4e8fb}
+body::after{width:420px;height:420px;right:-160px;top:-120px;background:#dff4ee}
+nav{display:flex;align-items:center;justify-content:space-between;padding:12px clamp(16px,5vw,64px);background:rgba(255,255,255,.85);backdrop-filter:blur(10px);position:sticky;top:0;z-index:5;box-shadow:0 1px 0 var(--line)}
+.brand{display:flex;align-items:center;gap:12px;font-weight:700;font-size:1.15rem}
+.brand b{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.logo{width:42px;height:42px;border-radius:12px;background:#eef2ff;display:grid;place-items:center}
+.links{display:flex;gap:6px}
+.links button{display:flex;align-items:center;gap:8px;border:0;background:none;padding:12px 14px;color:var(--mut);font:500 .95rem inherit;cursor:pointer;border-bottom:2px solid transparent}
+.links button[aria-current=page]{color:var(--blue);border-color:var(--blue)}
+.links svg{width:20px;height:20px}
+.hero{text-align:center;padding:40px 16px 26px}
+.hero h1{display:inline-flex;align-items:center;gap:16px;margin:0;font-size:clamp(1.9rem,6vw,2.9rem);font-weight:800;letter-spacing:-.03em}
+.hero h1 b{background:var(--grad);-webkit-background-clip:text;background-clip:text;color:transparent}
+.hero .logo{width:60px;height:60px;border-radius:16px}
+.hero p{margin:6px 0 0;color:var(--mut)}
+.card{max-width:620px;margin:0 auto 60px;background:#fff;border-radius:26px;padding:28px;box-shadow:0 24px 60px -20px rgba(70,90,160,.25);width:calc(100% - 32px)}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:#f1f3f9;border-radius:14px;padding:0;overflow:hidden;margin-bottom:22px}
+.seg button{display:flex;align-items:center;justify-content:center;gap:10px;border:0;background:none;padding:15px;color:var(--mut);font:600 1rem inherit;cursor:pointer;border-radius:14px;transition:.25s}
+.seg button[aria-selected=true]{background:var(--grad);color:#fff;box-shadow:0 8px 20px -6px rgba(90,80,240,.55)}
+.seg svg{width:20px;height:20px}
+h2.t{margin:0;font-size:1.1rem;font-weight:700}
+.hint{margin:2px 0 14px;color:var(--mut);font-size:.9rem}
+.in{display:flex;align-items:center;gap:10px;border:1px solid var(--line);border-radius:14px;padding:0 14px;background:#fff;transition:.2s}
+.in:focus-within{border-color:var(--blue);box-shadow:0 0 0 4px rgba(59,130,246,.15)}
+.in input{flex:1;min-width:0;border:0;outline:0;background:none;padding:15px 0;font:500 1rem inherit;color:var(--ink)}
+.in button{border:0;background:none;color:var(--mut);cursor:pointer;display:grid;place-items:center;padding:4px;border-radius:8px}
+.in button:hover{color:var(--blue)}
+.in svg{width:22px;height:22px}
+.clr{width:22px;height:22px;border-radius:50%!important;background:#d9dee9!important;color:#fff!important}
+.clr svg{width:12px;height:12px}
+.lbl{display:block;font-weight:600;font-size:.88rem;margin:16px 0 6px}
+.go{width:100%;margin-top:14px;padding:16px;border:0;border-radius:14px;background:var(--grad);color:#fff;font:700 1rem inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;box-shadow:0 14px 28px -10px rgba(90,80,240,.6);transition:transform .15s,filter .2s}
+.go:hover{filter:brightness(1.07)}.go:active{transform:scale(.985)}.go:disabled{filter:grayscale(.4) brightness(.95);cursor:progress}
+.go svg{width:20px;height:20px}
+:focus-visible{outline:3px solid rgba(59,130,246,.45);outline-offset:2px}
+.cam{position:relative;margin:14px 0 0;border-radius:18px;overflow:hidden;background:#000;aspect-ratio:1}
+.cam video{width:100%;height:100%;object-fit:cover}
+.cam::after{content:"";position:absolute;inset:16%;border:3px solid #fff;border-radius:22px;box-shadow:0 0 0 999px rgba(0,0,0,.45)}
+.cam i{position:absolute;left:16%;right:16%;top:16%;height:3px;background:var(--grad);box-shadow:0 0 14px var(--blue);z-index:2;animation:beam 1.8s ease-in-out infinite alternate}
+@keyframes beam{to{top:84%}}
+.cam button{position:absolute;right:10px;top:10px;z-index:3;border:0;border-radius:99px;padding:7px 14px;background:rgba(0,0,0,.6);color:#fff;font:600 .85rem inherit;cursor:pointer}
+.hide,[hidden]{display:none!important}
+.out{margin-top:22px}
+
+/* ===== buffering (minimal) ===== */
+.loader{border:1px solid var(--line);border-radius:18px;padding:14px 20px 18px;background:#fff}
+.steps{margin:0;padding:0;list-style:none}
+.steps li{display:flex;align-items:center;gap:12px;padding:7px 0;color:var(--mut);font-size:.95rem}
+.steps .dot{width:20px;height:20px;border-radius:50%;border:2px solid var(--line);flex:none;display:grid;place-items:center;transition:.25s}
+.steps li.on{color:var(--ink)}
+.steps li.on .dot{border-color:var(--blue);border-top-color:transparent;animation:spin .7s linear infinite}
+.steps li.done{color:var(--ink)}
+.steps li.done .dot{background:var(--blue);border-color:var(--blue)}
+.steps li.done .dot::after{content:"";width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+@keyframes spin{to{transform:rotate(360deg)}}
+.sk{display:grid;gap:10px;margin-top:10px}
+.sk b{height:12px;border-radius:6px;background:linear-gradient(90deg,#edf0f8 25%,#f8f9fd 50%,#edf0f8 75%) 0 0/300% 100%;animation:sh2 1.2s linear infinite}
+.sk b:nth-child(1){width:55%}.sk b:nth-child(2){width:90%}.sk b:nth-child(3){width:70%}
+@keyframes sh2{to{background-position:-300% 0}}
+
+/* ===== result ===== */
+.res{border-radius:20px;padding:18px;border:1px solid color-mix(in srgb,var(--c) 25%,#fff);background:var(--bg);animation:pop .5s cubic-bezier(.2,1.3,.4,1)}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.96)}}
+.res.ok{--c:var(--ok);--bg:var(--okbg)}.res.bad{--c:var(--bad);--bg:var(--badbg)}.res.warn{--c:var(--warn);--bg:var(--warnbg)}
+.head{display:flex;align-items:center;gap:14px;padding-bottom:14px}
+.seal{position:relative;width:60px;height:60px;border-radius:50%;background:color-mix(in srgb,var(--c) 18%,#fff);display:grid;place-items:center;flex:none}
+.seal::before{content:"";position:absolute;inset:0;border-radius:50%;border:2px solid var(--c);animation:burst .9s ease-out forwards}
+@keyframes burst{from{transform:scale(.7);opacity:1}to{transform:scale(1.7);opacity:0}}
+.seal i{width:42px;height:42px;border-radius:50%;background:var(--c);display:grid;place-items:center}
+.seal svg{width:24px;height:24px}.seal path{stroke-dasharray:30;stroke-dashoffset:30;animation:draw .5s .2s ease forwards}
+@keyframes draw{to{stroke-dashoffset:0}}
+.head h3{margin:0;color:var(--c);font-size:1.2rem}.head p{margin:0;color:#334155;font-size:.93rem}
+.facts{display:grid;grid-template-columns:repeat(3,1fr);border-top:1px solid color-mix(in srgb,var(--c) 18%,#fff);padding-top:14px}
+.fact{display:flex;gap:10px;padding:0 10px;border-left:1px solid color-mix(in srgb,var(--c) 18%,#fff);min-width:0}
+.fact:first-child{border:0;padding-left:0}
+.fact svg{width:22px;height:22px;flex:none;color:#64748b;margin-top:2px}
+.fact small{display:block;color:var(--mut);font-size:.78rem}
+.fact span{display:block;font-weight:500;font-size:.9rem;word-break:break-all}
+.fact a{color:var(--blue);text-decoration:none}
+.pill{display:flex;align-items:center;gap:8px;margin-top:14px;padding:9px 12px;border-radius:10px;background:color-mix(in srgb,var(--c) 10%,#fff);color:var(--c);font-weight:500;font-size:.85rem}
+.pill svg{width:16px;height:16px}
+.acts{display:flex;gap:8px;margin-top:12px}
+.acts button{flex:1;padding:9px;border:1px solid var(--line);background:#fff;border-radius:10px;font:600 .85rem inherit;cursor:pointer;color:var(--ink)}
+.acts button:hover{border-color:var(--blue);color:var(--blue)}
+.list{display:grid;gap:8px;margin-top:10px}
+.row{display:flex;align-items:center;gap:12px;padding:12px 14px;border:1px solid var(--line);border-radius:12px;background:#fff;cursor:pointer;font:500 .95rem inherit;text-align:left;width:100%}
+.row:hover{border-color:var(--blue)}
+.row u{width:10px;height:10px;border-radius:50%;background:var(--c);flex:none}
+.row span{flex:1;overflow:hidden;text-overflow:ellipsis}.row small{color:var(--mut)}
+.ok{--c:var(--ok)}.bad{--c:var(--bad)}.warn{--c:var(--warn)}
+.empty{color:var(--mut);text-align:center;padding:26px 0}
+.qrbox{text-align:center;margin-top:20px}
+#qr{display:inline-block;padding:12px;border:1px solid var(--line);border-radius:14px;background:#fff}
+.qrbox small{display:block;margin-top:10px;color:var(--mut);word-break:break-all}
+.kv{display:flex;justify-content:space-between;gap:12px;padding:12px 0;border-bottom:1px solid var(--line);font-size:.93rem}
+.kv span:first-child{color:var(--mut)}.kv span:last-child{font-weight:500;text-align:right;word-break:break-all}
+.kv a{color:var(--blue);text-decoration:none}
+@media (max-width:560px){.links span{display:none}.facts{grid-template-columns:1fr;gap:12px}.fact{border:0;padding:0}.sk{grid-template-columns:1fr}.card{padding:20px}}
+@media (prefers-reduced-motion:reduce){*,*::before,*::after{animation-duration:.01s!important;animation-iteration-count:1!important}}
 </style>
 </head>
 <body>
-<h1>Fake Product Detector</h1>
-<div class="tabs">
-<button id="tabV" onclick="showTab('verify')">Verify</button>
-<button id="tabR" class="off" onclick="showTab('register')">Register</button>
+<nav>
+  <div class="brand"><div class="logo" data-i="shield"></div>Fake Product <b>Detector</b></div>
+  <div class="links">
+    <button data-v="home" aria-current="page"><span data-i="home"></span><span>Home</span></button>
+    <button data-v="history"><span data-i="clock"></span><span>History</span></button>
+    <button data-v="settings"><span data-i="gear"></span><span>Settings</span></button>
+  </div>
+</nav>
+
+<header class="hero">
+  <h1><div class="logo" data-i="shield"></div><span>Fake Product <b>Detector</b></span></h1>
+  <p>Verify product authenticity on the blockchain. Scan. Check. Be sure.</p>
+</header>
+
+<div class="card" id="home">
+  <div class="seg" role="tablist">
+    <button id="tabV" role="tab" aria-selected="true"><span data-i="search"></span>Verify</button>
+    <button id="tabR" role="tab" aria-selected="false"><span data-i="user"></span>Register</button>
+  </div>
+
+  <section id="verify">
+    <h2 class="t">Check a product</h2>
+    <p class="hint">Enter the product ID or code to verify its authenticity.</p>
+    <div class="in">
+      <button id="camBtn" title="Scan QR code" aria-label="Scan QR code" data-i="barcode"></button>
+      <input id="vSerial" placeholder="e.g. NIKE-AIR-2026_0001" autocomplete="off" aria-label="Product ID">
+      <button class="clr hide" id="clr" aria-label="Clear" data-i="x"></button>
+    </div>
+    <div class="cam hide" id="cam"><video id="vid" playsinline muted></video><i></i><button id="camClose">Close</button></div>
+    <button class="go" id="vBtn"><span data-i="search"></span>Verify</button>
+    <div class="out" id="vOut" aria-live="polite"></div>
+  </section>
+
+  <section id="register" hidden>
+    <h2 class="t">Register a product</h2>
+    <p class="hint">For manufacturers. Requires the wallet that owns the contract.</p>
+    <label class="lbl" for="serial" style="margin-top:0">Serial number</label>
+    <div class="in"><input id="serial" placeholder="Must be unique" autocomplete="off"></div>
+    <label class="lbl" for="pname">Product name</label>
+    <div class="in"><input id="pname" autocomplete="off"></div>
+    <label class="lbl" for="price">Price</label>
+    <div class="in"><input id="price" type="number" min="0" inputmode="numeric"></div>
+    <button class="go" id="rBtn">Register product</button>
+    <div class="out" id="rOut" aria-live="polite"></div>
+    <div class="qrbox hide" id="qrbox"><div id="qr"></div><small id="link"></small>
+      <div class="acts" style="max-width:240px;margin:12px auto 0"><button id="copyLink">Copy link</button></div></div>
+  </section>
 </div>
 
-<div id="verify" class="card">
-<b>Check a product</b>
-<input id="vSerial" placeholder="Serial number">
-<button onclick="verify($('vSerial').value.trim())">Verify</button>
-<div id="vResult" class="res"></div>
+<div class="card" id="history" hidden>
+  <h2 class="t">History</h2><p class="hint">Your recent checks on this device.</p>
+  <div class="list" id="hList"></div>
+  <div class="acts" style="margin-top:16px"><button id="hClear">Clear history</button></div>
 </div>
 
-<div id="register" class="card" style="display:none">
-<b>Register a product (manufacturer)</b>
-<input id="serial" placeholder="Serial number (unique)">
-<input id="pname" placeholder="Product name">
-<input id="price" type="number" placeholder="Price">
-<button onclick="register()">Register on blockchain</button>
-<div id="rResult" class="res"></div>
-<div id="qr"></div>
-<small id="link"></small>
+<div class="card" id="settings" hidden>
+  <h2 class="t">Settings</h2><p class="hint">Where this app reads its records from.</p>
+  <div class="kv"><span>Network</span><span>Ethereum Sepolia (test)</span></div>
+  <div class="kv"><span>Contract</span><span><a id="cLink" target="_blank" rel="noopener"></a></span></div>
+  <div class="kv"><span>Camera scanner</span><span id="camSup"></span></div>
 </div>
+
 <script>
-const CONTRACT_ADDRESS = "0x7c366B53F77D306880285ef044d4250E1643ac27";
+const CONTRACT_ADDRESS = "0x8A9431590Cb8f333aFc4f9C6b30B4dC756193269";
 const RPC_URL = "https://ethereum-sepolia-rpc.publicnode.com";
+const EXPLORER = "https://sepolia.etherscan.io/address/";
 const ABI = [
-"function registerProduct(bytes32 id, string name, uint256 price)",
-"function flagProduct(bytes32 id)",
-"function verifyProduct(bytes32 id) view returns (uint8, string, uint256, address)"
+  "function registerProduct(bytes32 id, string name, uint256 price)",
+  "function flagProduct(bytes32 id)",
+  "function verifyProduct(bytes32 id) view returns (uint8, string, uint256, address)"
 ];
 const $ = (id) => document.getElementById(id);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const S = (p, extra) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ' + (extra || "") + '>' + p + '</svg>';
+const ICONS = {
+  shield: '<svg viewBox="0 0 24 24" fill="none"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#3b82f6"/><stop offset="1" stop-color="#6d4aff"/></linearGradient></defs><path d="M12 2.5l8 3v6c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10v-6z" fill="url(#g)"/><path d="M8.5 12l2.4 2.4 4.6-4.8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+  home: S('<path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z"/>'),
+  clock: S('<circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/>'),
+  gear: S('<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/>'),
+  search: S('<circle cx="11" cy="11" r="7"/><path d="M21 21l-4.3-4.3"/>'),
+  user: S('<circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7"/>'),
+  barcode: S('<path d="M4 7V5a1 1 0 0 1 1-1h2M17 4h2a1 1 0 0 1 1 1v2M20 17v2a1 1 0 0 1-1 1h-2M7 20H5a1 1 0 0 1-1-1v-2M8 8v8M12 8v8M16 8v8"/>'),
+  x: S('<path d="M6 6l12 12M18 6L6 18"/>'),
+  box: S('<path d="M21 8l-9-5-9 5v8l9 5 9-5zM3 8l9 5 9-5M12 13v8"/>'),
+  tag: S('<path d="M20.6 13.4l-7.2 7.2a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8z"/><circle cx="7.5" cy="7.5" r="1.2"/>'),
+  maker: S('<path d="M3 21V10l6 4V10l6 4V6h3l3 2v13zM8 17h2M14 17h2"/>'),
+  ok: S('<path d="M5 13l4 4L19 7"/>', 'stroke="#fff" stroke-width="2.6"'),
+  bad: S('<path d="M6 6l12 12M18 6L6 18"/>', 'stroke="#fff" stroke-width="2.6"'),
+  warn: S('<path d="M12 7v6M12 17v.5"/>', 'stroke="#fff" stroke-width="2.8"'),
+  pill: S('<path d="M12 3l8 3v5c0 4.5-3.2 7.8-8 9-4.8-1.2-8-4.5-8-9V6zM8.5 12l2.5 2.5L15.5 10"/>')
+};
+document.querySelectorAll("[data-i]").forEach((n) => n.innerHTML = ICONS[n.dataset.i]);
 
-function showTab(t) {
-$("verify").style.display = t === "verify" ? "block" : "none";
-$("register").style.display = t === "register" ? "block" : "none";
-$("tabV").className = t === "verify" ? "" : "off";
-$("tabR").className = t === "register" ? "" : "off";
+/* ---------- navigation ---------- */
+function view(v){
+  ["home", "history", "settings"].forEach((x) => $(x).hidden = x !== v);
+  document.querySelectorAll(".links button").forEach((b) => b.toggleAttribute("aria-current", b.dataset.v === v) || b.removeAttribute("aria-current"));
+  document.querySelectorAll(".links button").forEach((b) => { if (b.dataset.v === v) b.setAttribute("aria-current", "page"); });
+  if (v === "history") drawHist();
+  stopScan();
+}
+document.querySelectorAll(".links button").forEach((b) => b.onclick = () => view(b.dataset.v));
+function tab(t){
+  const v = t === "verify";
+  $("verify").hidden = !v; $("register").hidden = v;
+  $("tabV").setAttribute("aria-selected", v); $("tabR").setAttribute("aria-selected", !v); stopScan();
+}
+$("tabV").onclick = () => tab("verify"); $("tabR").onclick = () => tab("register");
+
+/* ---------- history ---------- */
+const load = () => { try { return JSON.parse(localStorage.getItem("fpd_hist") || "[]"); } catch (e) { return []; } };
+function save(serial, kind){
+  try { const h = load().filter((x) => x.s !== serial); h.unshift({ s: serial, k: kind, t: Date.now() }); localStorage.setItem("fpd_hist", JSON.stringify(h.slice(0, 20))); } catch (e) {}
+}
+function drawHist(){
+  const h = load(), box = $("hList"); box.innerHTML = "";
+  if (!h.length) { box.innerHTML = '<div class="empty">No checks yet.</div>'; return; }
+  h.forEach((x) => {
+    const b = document.createElement("button"); b.className = "row " + x.k;
+    b.innerHTML = "<u></u><span></span><small></small>";
+    b.children[1].textContent = x.s; b.children[2].textContent = new Date(x.t).toLocaleDateString();
+    b.onclick = () => { view("home"); tab("verify"); $("vSerial").value = x.s; toggleClr(); verify(x.s); };
+    box.appendChild(b);
+  });
+}
+$("hClear").onclick = () => { try { localStorage.removeItem("fpd_hist"); } catch (e) {} drawHist(); };
+
+/* ---------- loader + result ---------- */
+function loader(el, labels, i){
+  el.innerHTML = '<div class="loader"><ul class="steps">' + labels.map((l, n) =>
+    '<li class="' + (n < i ? "done" : n === i ? "on" : "") + '"><span class="dot"></span>' + l + '</li>').join("") +
+    '</ul><div class="sk"><b></b><b></b><b></b></div></div>';
+}
+function fact(icon, label, value, href){
+  const d = document.createElement("div"); d.className = "fact"; d.innerHTML = ICONS[icon] + "<div><small></small><span></span></div>";
+  d.querySelector("small").textContent = label;
+  const sp = d.querySelector("span");
+  if (href) { const a = document.createElement("a"); a.href = href; a.target = "_blank"; a.rel = "noopener"; a.textContent = value; sp.appendChild(a); } else sp.textContent = value;
+  return d;
+}
+function result(el, kind, title, text, facts, serial){
+  el.innerHTML = '<div class="res ' + kind + '"><div class="head"><div class="seal"><i>' + ICONS[kind] + '</i></div><div><h3></h3><p></p></div></div></div>';
+  const box = el.firstChild;
+  box.querySelector("h3").textContent = title; box.querySelector("p").textContent = text;
+  if (facts) { const f = document.createElement("div"); f.className = "facts"; facts.forEach((x) => f.appendChild(x)); box.appendChild(f); }
+  if (serial !== undefined) {
+    const p = document.createElement("div"); p.className = "pill"; p.innerHTML = ICONS.pill + "<span></span>";
+    p.querySelector("span").textContent = "Checked on: " + new Date().toLocaleString(undefined, { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" });
+    box.appendChild(p);
+    const a = document.createElement("div"); a.className = "acts";
+    const c = document.createElement("button"); c.textContent = "Copy ID";
+    c.onclick = () => navigator.clipboard.writeText(serial).then(() => { c.textContent = "Copied"; setTimeout(() => c.textContent = "Copy ID", 1400); });
+    a.appendChild(c); box.appendChild(a);
+  }
 }
 
-async function verify(serial) {
-const out = $("vResult");
-out.className = "res info";
-if (!serial) { out.textContent = "Enter a serial number."; return; }
-out.textContent = "Checking...";
-try {
-const c = new ethers.Contract(CONTRACT_ADDRESS, ABI, new ethers.JsonRpcProvider(RPC_URL));
-const r = await c.verifyProduct(ethers.id(serial));
-const s = Number(r[0]);
-if (s === 0) {
-out.className = "res bad";
-out.textContent = "Not registered. This product may be fake.";
-} else if (s === 2) {
-out.className = "res bad";
-out.textContent = "Flagged as fake: " + r[1];
-} else {
-out.className = "res ok";
-out.textContent = "Genuine: " + r[1] + " | Price: " + r[2].toString() + " | Maker: " + r[3];
+/* ---------- verify ---------- */
+async function verify(raw){
+  const serial = (raw || "").trim(), out = $("vOut");
+  if (!serial) { result(out, "warn", "Enter a product ID", "Type it in or scan the QR code on the product."); return; }
+  const L = ["Hashing product ID", "Querying the blockchain", "Reading the record"];
+  $("vBtn").disabled = true;
+  try {
+    loader(out, L, 0); await sleep(600);
+    loader(out, L, 1);
+    const c = new ethers.Contract(CONTRACT_ADDRESS, ABI, new ethers.JsonRpcProvider(RPC_URL));
+    const [r] = await Promise.all([c.verifyProduct(ethers.id(serial)), sleep(900)]);
+    loader(out, L, 2); await sleep(600);
+    loader(out, L, 3); await sleep(350);
+    const s = Number(r[0]);
+    if (s === 0) { result(out, "warn", "Not registered", "No maker has registered this ID. Be cautious.", null, serial); save(serial, "warn"); }
+    else if (s === 2) { result(out, "bad", "Counterfeit reported", "The maker flagged this product as fake.", [fact("box", "Product", r[1])], serial); save(serial, "bad"); }
+    else {
+      result(out, "ok", "Authentic Product", "This product appears to be genuine.", [
+        fact("box", "Product", r[1]), fact("tag", "Price", "\u20B9" + r[2].toString()),
+        fact("maker", "Maker", r[3].slice(0, 6) + "..." + r[3].slice(-4), EXPLORER + r[3])
+      ], serial); save(serial, "ok");
+    }
+  } catch (e) {
+    result(out, "bad", "Could not check", "The network did not answer: " + (e.shortMessage || e.message));
+  } finally { $("vBtn").disabled = false; }
 }
-} catch (e) {
-out.className = "res bad";
-out.textContent = "Error: " + (e.shortMessage || e.message);
-}
-}
+$("vBtn").onclick = () => verify($("vSerial").value);
+$("vSerial").addEventListener("keydown", (e) => { if (e.key === "Enter") verify(e.target.value); });
+function toggleClr(){ $("clr").classList.toggle("hide", !$("vSerial").value); }
+$("vSerial").addEventListener("input", toggleClr);
+$("clr").onclick = () => { $("vSerial").value = ""; toggleClr(); $("vOut").innerHTML = ""; $("vSerial").focus(); };
 
-async function register() {
-const out = $("rResult");
-out.className = "res info";
-if (!window.ethereum) { out.textContent = "Open this page in the MetaMask app browser."; return; }
-const serial = $("serial").value.trim();
-const name = $("pname").value.trim();
-const price = $("price").value;
-if (!serial || !name || !price) { out.textContent = "Fill in all fields."; return; }
-try {
-out.textContent = "Confirm in your wallet...";
-const signer = await new ethers.BrowserProvider(window.ethereum).getSigner();
-const c = new ethers.Contract(CONTRACT_ADDRESS, ABI, signer);
-const tx = await c.registerProduct(ethers.id(serial), name, price);
-out.textContent = "Waiting for confirmation...";
-await tx.wait();
-out.className = "res ok";
-out.textContent = "Registered! Print this QR on the product.";
-const link = location.origin + location.pathname + "?id=" + encodeURIComponent(serial);
-$("qr").innerHTML = "";
-new QRCode($("qr"), { text: link, width: 200, height: 200 });
-$("link").textContent = link;
-} catch (e) {
-out.className = "res bad";
-out.textContent = "Error: " + (e.reason || e.shortMessage || e.message);
+/* ---------- camera scanner ---------- */
+let stream = null, scanning = false;
+async function startScan(){
+  if (!("BarcodeDetector" in window) || !navigator.mediaDevices) { result($("vOut"), "warn", "Scanner not supported", "Use your phone's camera app to scan the QR code, or type the ID."); return; }
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    $("vid").srcObject = stream; await $("vid").play(); $("cam").classList.remove("hide"); scanning = true;
+    const det = new BarcodeDetector({ formats: ["qr_code"] });
+    while (scanning) {
+      const codes = await det.detect($("vid")).catch(() => []);
+      if (codes.length) {
+        let t = codes[0].rawValue; try { t = new URL(t).searchParams.get("id") || t; } catch (e) {}
+        stopScan(); $("vSerial").value = t; toggleClr(); verify(t); return;
+      }
+      await sleep(250);
+    }
+  } catch (e) { stopScan(); result($("vOut"), "warn", "Camera blocked", "Allow camera access in your browser, or type the ID instead."); }
 }
-}
+function stopScan(){ scanning = false; if (stream) { stream.getTracks().forEach((t) => t.stop()); stream = null; } $("cam").classList.add("hide"); }
+$("camBtn").onclick = startScan; $("camClose").onclick = stopScan;
 
+/* ---------- register ---------- */
+let lastLink = "";
+async function register(){
+  const out = $("rOut");
+  if (!window.ethereum) { result(out, "warn", "Wallet needed", "Open this page in a browser with MetaMask to register products."); return; }
+  const serial = $("serial").value.trim(), name = $("pname").value.trim(), price = $("price").value;
+  if (!serial || !name || !price) { result(out, "warn", "Missing details", "Fill in the product ID, name, and price."); return; }
+  const L = ["Confirm in your wallet", "Waiting for the network", "Saving the record"];
+  $("rBtn").disabled = true;
+  try {
+    loader(out, L, 0);
+    const signer = await new ethers.BrowserProvider(window.ethereum).getSigner();
+    const tx = await new ethers.Contract(CONTRACT_ADDRESS, ABI, signer).registerProduct(ethers.id(serial), name, price);
+    loader(out, L, 1); await tx.wait();
+    loader(out, L, 2); await sleep(600);
+    result(out, "ok", "Product registered", "Print the QR code below on the product.");
+    lastLink = location.origin + location.pathname + "?id=" + encodeURIComponent(serial);
+    $("qr").innerHTML = ""; new QRCode($("qr"), { text: lastLink, width: 180, height: 180 });
+    $("link").textContent = lastLink; $("qrbox").classList.remove("hide");
+  } catch (e) { result(out, "bad", "Not registered", e.reason || e.shortMessage || e.message); }
+  finally { $("rBtn").disabled = false; }
+}
+$("rBtn").onclick = register;
+$("copyLink").onclick = (e) => navigator.clipboard.writeText(lastLink).then(() => { e.target.textContent = "Copied"; setTimeout(() => e.target.textContent = "Copy link", 1400); });
+
+/* ---------- init ---------- */
+$("cLink").href = EXPLORER + CONTRACT_ADDRESS; $("cLink").textContent = CONTRACT_ADDRESS.slice(0, 8) + "..." + CONTRACT_ADDRESS.slice(-6);
+$("camSup").textContent = ("BarcodeDetector" in window) ? "Supported" : "Not supported in this browser";
 const idFromUrl = new URLSearchParams(location.search).get("id");
-if (idFromUrl) { $("vSerial").value = idFromUrl; verify(idFromUrl); }
+if (idFromUrl) { $("vSerial").value = idFromUrl; toggleClr(); verify(idFromUrl); }
 </script>
 </body>
 </html>
