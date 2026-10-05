@@ -1,50 +1,53 @@
-pragma solidity ^0.8.0;
+// SPDX-License-Identifier: MIT
+pragma solidity ^0.8.20;
 
-contract fakeProdDetector {
-    mapping(bytes32 => Product) public productList;
+contract FakeProductDetector {
+    enum Status { Unregistered, Genuine, Flagged }
 
     struct Product {
-        bytes32 product_id;
-        string product_name;
-        uint product_price;
-        bool isFake;
-        
+        string name;
+        uint256 price;
+        address manufacturer;
+        Status status;
     }
 
-    
-//     function toBytes(address x) returns (bytes b) {
-//     b = new bytes(20);
-//     for (uint i = 0; i < 20; i++)
-//         b[i] =byte(uint8(uint(x) / (2**(8*(19 - i)))));
+    address public owner;
+    mapping(address => bool) public manufacturers;
+    mapping(bytes32 => Product) private products;
 
-//     // return b;
-// }
+    event ProductRegistered(bytes32 indexed id, address indexed manufacturer);
+    event ProductFlagged(bytes32 indexed id, address indexed by);
 
-    function uploadProduct(bytes32 id, string memory name, uint price) public {
-
-        require(productList[id].product_id != 0, "Product found and already Exists");
-            productList[id] = Product({
-            product_id: id,
-            product_name: name,
-            product_price: price,
-            isFake: false
-        });
-
-
+    constructor() {
+        owner = msg.sender;
+        manufacturers[msg.sender] = true;
     }
 
-    function reportFakeProduct(bytes32 productId) public {
-        require(productList[productId].product_id == 0, "Product not found");
-        productList[productId].isFake = true;
+    function addManufacturer(address m) external {
+        require(msg.sender == owner, "Only owner");
+        manufacturers[m] = true;
     }
 
-    function isFakeProduct(bytes32 productId) public view returns (bool) {
-        return productList[productId].isFake;
+    function registerProduct(bytes32 id, string calldata name, uint256 price) external {
+        require(manufacturers[msg.sender], "Not a manufacturer");
+        require(products[id].status == Status.Unregistered, "Already registered");
+        products[id] = Product(name, price, msg.sender, Status.Genuine);
+        emit ProductRegistered(id, msg.sender);
     }
 
+    function flagProduct(bytes32 id) external {
+        Product storage p = products[id];
+        require(p.status != Status.Unregistered, "Not found");
+        require(msg.sender == p.manufacturer || msg.sender == owner, "Not authorized");
+        p.status = Status.Flagged;
+        emit ProductFlagged(id, msg.sender);
+    }
+
+    function verifyProduct(bytes32 id)
+        external view
+        returns (Status, string memory, uint256, address)
+    {
+        Product storage p = products[id];
+        return (p.status, p.name, p.price, p.manufacturer);
+    }
 }
-
-
-// This is Demo Code
-// For full Project Code please reach out to us 
-// Mail : vatshayan007@gmail.com
