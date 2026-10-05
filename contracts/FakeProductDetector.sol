@@ -28,11 +28,31 @@ contract FakeProductDetector {
         manufacturers[m] = true;
     }
 
+    function _register(bytes32 id, string memory name, uint256 price) internal {
+        products[id] = Product(name, price, msg.sender, Status.Genuine);
+        emit ProductRegistered(id, msg.sender);
+    }
+
     function registerProduct(bytes32 id, string calldata name, uint256 price) external {
         require(manufacturers[msg.sender], "Not a manufacturer");
         require(products[id].status == Status.Unregistered, "Already registered");
-        products[id] = Product(name, price, msg.sender, Status.Genuine);
-        emit ProductRegistered(id, msg.sender);
+        _register(id, name, price);
+    }
+
+    // Registers many products in one transaction. Serials that already exist are skipped.
+    function registerBatch(
+        bytes32[] calldata ids,
+        string[] calldata names,
+        uint256[] calldata prices
+    ) external returns (uint256 added) {
+        require(manufacturers[msg.sender], "Not a manufacturer");
+        require(ids.length == names.length && ids.length == prices.length, "Length mismatch");
+        require(ids.length <= 100, "Batch too large");
+        for (uint256 i = 0; i < ids.length; i++) {
+            if (products[ids[i]].status != Status.Unregistered) continue;
+            _register(ids[i], names[i], prices[i]);
+            added++;
+        }
     }
 
     function flagProduct(bytes32 id) external {
