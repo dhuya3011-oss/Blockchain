@@ -203,6 +203,13 @@ const ABI = [
 ];
 const $ = (id) => document.getElementById(id);
    const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+     // Always sign on Sepolia: ask MetaMask to switch before any wallet action
+   const _getSigner = ethers.BrowserProvider.prototype.getSigner;
+   ethers.BrowserProvider.prototype.getSigner = async function (...a) {
+     try { await window.ethereum.request({ method: "wallet_switchEthereumChain", params: [{ chainId: "0xaa36a7" }] }); }
+     catch (e) { throw new Error("Switch MetaMask to the Sepolia network."); }
+     return _getSigner.apply(new ethers.BrowserProvider(window.ethereum), a);
+   };
 const S = (p, extra) => '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" ' + (extra || "") + '>' + p + '</svg>';
 const ICONS = {
   shield: '<svg viewBox="0 0 24 24" fill="none"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#3b82f6"/><stop offset="1" stop-color="#6d4aff"/></linearGradient></defs><path d="M12 2.5l8 3v6c0 5-3.4 8.6-8 10-4.6-1.4-8-5-8-10v-6z" fill="url(#g)"/><path d="M8.5 12l2.4 2.4 4.6-4.8" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>',
